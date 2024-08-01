@@ -1,0 +1,6 @@
+custom_components/__pycache__
+custom_components/rennigou/__pycache__
+
+.pytest_cache
+.coverage
+.devcontainer.json

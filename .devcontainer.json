@@ -1,0 +1,11 @@
+{
+	"image": "homeassistant/home-assistant:latest",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.autopep8"
+			]
+		}
+	}
+}
