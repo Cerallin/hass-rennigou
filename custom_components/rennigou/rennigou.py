@@ -1,9 +1,11 @@
-import requests
+import aiohttp
 import time
 import jwt
 from json import JSONDecodeError
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+from .const import API_HOST, REFER_HOST
 
 
 class RennigouLoginFail(RuntimeError):
@@ -29,16 +31,15 @@ class RennigouAPIRequestError(RuntimeError):
 
 
 class RennigouClient:
-    API_HOST = "https://rl.rngmoe.com"
-    REFER_HOST = "https://www.030buy.net/"
-
     def __init__(self):
         self.uid = None
         self.token = None
 
-    async def _send_request(self, method: str, url: str, params=None, data=None):
+    async def _send_request(
+        self, method: str, url: str, params=None, data=None
+    ) -> aiohttp.ClientResponse:
         headers = {
-            "Referer": __class__.REFER_HOST,
+            "Referer": REFER_HOST,
             "Authorization": f"Bearer {self._generate_jwt_token()}",
         }
 
@@ -46,25 +47,21 @@ class RennigouClient:
             headers["Token"] = f"{self.token}"
             headers["Uid"] = f"{self.uid}"
 
-        if method == "GET":
-            response = requests.get(url, headers=headers, params=params)
-        elif method == "POST":
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
-            response = requests.post(url, headers=headers, data=data)
-        else:
-            raise ValueError(f"Unsupported HTTP method: {method}")
+        async with aiohttp.ClientSession() as session:
+            async with session.request(
+                method, url, headers=headers, params=params, data=data
+            ) as response:
+                # Check if status code == 200
+                if status_code := response.status != 200:
+                    raise RennigouHTTPError(url, status_code)
 
-        # Check if status code == 200
-        if status_code := response.status_code != 200:
-            raise RennigouHTTPError(url, status_code)
+                return response
 
-        return response
-
-    def _send_api_request(
+    async def _send_api_request(
         self, method: str, endpoint: str, params=None, data=None
     ) -> dict:
-        url = f"{__class__.API_HOST}{endpoint}"
-        response = self._send_request(method, url, params, data)
+        url = f"{API_HOST}{endpoint}"
+        response = await self._send_request(method, url, params, data)
 
         # Check if response is empty
         try:
@@ -91,9 +88,9 @@ class RennigouClient:
 
         return token
 
-    def login(self, username: str, password: str) -> None:
+    async def login(self, username: str, password: str) -> None:
         try:
-            data = self._send_api_request(
+            data = await self._send_api_request(
                 "POST",
                 "/user/index/login",
                 data={
@@ -107,12 +104,12 @@ class RennigouClient:
         except RennigouEmptyResponse:
             raise RennigouLoginFail
 
-    def get_currency_rate(self) -> float:
-        data = self._send_api_request("GET", "/supplier/index/getCommonInfo")
+    async def get_currency_rate(self) -> float:
+        data = await self._send_api_request("GET", "/supplier/index/getCommonInfo")
         return data["exchange"]
 
-    def get_packages(self) -> list[dict]:
-        data = self._send_api_request(
+    async def get_packages(self) -> list[dict]:
+        data = await self._send_api_request(
             "GET",
             "/order/order/getAllLists",
             params={
