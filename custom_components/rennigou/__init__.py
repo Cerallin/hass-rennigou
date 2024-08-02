@@ -25,7 +25,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    _LOGGER.warning("Ciallo Rennigou")
+    _LOGGER.info("Ciallo～(∠・ω< ) 任你购")
 
     # Login first
     try:
@@ -34,19 +34,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     except RennigouLoginFail as err:
         raise ConfigEntryNotReady(err) from err
 
-    # TODO How to register packages?
-
     rennigou_coordinator = RennigouCoordinator(hass, client)
+    await rennigou_coordinator.async_config_entry_first_refresh()
 
-    # re-login every REFRESH_TOKEN_INTERVAL
+    # refresh auth token every REFRESH_TOKEN_INTERVAL
     async def refgresh_rennigou_token(coordinator: RennigouCoordinator):
         _LOGGER.info("Refreshed rennigou auth token")
         await coordinator.client.login()
         await asyncio.sleep(REFRESH_TOKEN_INTERVAL.total_seconds())
 
     hass.loop.create_task(refgresh_rennigou_token(rennigou_coordinator))
-
-    await rennigou_coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rennigou_coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

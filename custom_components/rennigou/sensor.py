@@ -20,7 +20,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: RennigouCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities([RennigouCurrencySensor(coordinator)])
+    async_add_entities(
+        [
+            RennigouCurrencySensor(coordinator),
+            RennigouPackagesSensor(coordinator),
+        ]
+    )
 
 
 class RennigouSensor(CoordinatorEntity[RennigouCoordinator], SensorEntity):
@@ -58,28 +63,28 @@ class RennigouCurrencySensor(RennigouSensor):
         return {}
 
     async def async_update(self):
-        await self._coordinator.async_request_refresh()
+        await self.coordinator.async_request_refresh()
 
 
-# class RennigouPackagesSensor(Entity):
-#     def __init__(self, coordinator):
-#         self._coordinator = coordinator
+class RennigouPackagesSensor(RennigouSensor):
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
 
-#     @property
-#     def name(self):
-#         return self._coordinator.name
+    @property
+    def name(self):
+        return "package list"
 
-#     @property
-#     def state(self):
-#         return len(self._coordinator.data)  # State cannot be a large object, so using length
+    @property
+    def state(self):
+        return len(self.coordinator.data.packages)
 
-#     @property
-#     def unique_id(self):
-#         return f"{DOMAIN}_packages_sensor"
+    @property
+    def unique_id(self):
+        return f"{DOMAIN}_packages_sensor"
 
-#     @property
-#     def device_state_attributes(self):
-#         return {"packages": self._coordinator.data}
+    @property
+    def extra_state_attributes(self):
+        return {"packages": self.coordinator.data.packages}
 
-#     async def async_update(self):
-#         await self._coordinator.async_request_refresh()
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
