@@ -1,5 +1,7 @@
 {
   "name": "Rennigou",
+  "description": "任你购的HA集成，提供汇率与包裹信息",
+  "topics": ["shopping", "rennigou"],
   "render_readme": true,
-  "iot_class": "cloud_polling"
+  "issue_tracker": "https://github.com/Cerallin/hass-rennigou/issues"
 }
