@@ -1,11 +1,16 @@
 import logging
+import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    Platform,
+)
 
-from .const import DOMAIN
+from .const import DOMAIN, REFRESH_TOKEN_INTERVAL
 from .rennigou import RennigouClient, RennigouLoginFail
 from .coodinator import RennigouCoordinator
 
@@ -29,13 +34,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     except RennigouLoginFail as err:
         raise ConfigEntryNotReady(err) from err
 
-    # TODO Register login service, login every 12 hours
-
-    # TODO Register currency sensor
-
     # TODO How to register packages?
 
     rennigou_coordinator = RennigouCoordinator(hass, client)
+
+    # re-login every REFRESH_TOKEN_INTERVAL
+    async def refgresh_rennigou_token(coordinator: RennigouCoordinator):
+        _LOGGER.info("Refreshed rennigou auth token")
+        await coordinator.client.login()
+        await asyncio.sleep(REFRESH_TOKEN_INTERVAL.total_seconds())
+
+    hass.loop.create_task(refgresh_rennigou_token(rennigou_coordinator))
 
     await rennigou_coordinator.async_config_entry_first_refresh()
 

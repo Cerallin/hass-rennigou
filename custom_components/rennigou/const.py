@@ -3,6 +3,7 @@ from datetime import timedelta
 
 LOGGER = logging.getLogger(__package__)
 DEFAULT_SCAN_INTERVAL = timedelta(hours=1)
+REFRESH_TOKEN_INTERVAL = timedelta(hours=12)
 
 DOMAIN = "rennigou"
 
