@@ -31,7 +31,9 @@ class RennigouConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
 
             # Assuming username and password are required inputs
-            return self.async_create_entry(title="Rennigou Client", data=user_input)
+            return self.async_create_entry(
+                title=f"{client.username} (uid: {client.uid})", data=user_input
+            )
 
         return self.async_show_form(
             step_id="user", data_schema=USER_SCHEMA, errors=errors

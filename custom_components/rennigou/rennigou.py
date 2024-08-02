@@ -22,7 +22,7 @@ class RennigouHTTPError(RuntimeError):
 
 class RennigouEmptyResponse(RuntimeError):
     def __init__(self, method: str, url: str) -> None:
-        super().__init__(f"Response of {method} URL {url} " "returned empty response.")
+        super().__init__(f"Response of {method} URL {url} returned empty response.")
 
 
 class RennigouAPIRequestError(RuntimeError):
