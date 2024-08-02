@@ -1,91 +1,45 @@
-import asyncio
 import logging
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 
-import voluptuous as vol
-
-import homeassistant.helpers.config_validation as cv
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
-
-from .rennigou import RennigouClient
+from .const import DOMAIN
+from .rennigou import RennigouClient, RennigouLoginFail
+from .coodinator import RennigouCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "rennigou_sensor"
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-    },
-    extra=vol.ALLOW_EXTRA,
-)
+PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
-async def async_setup(hass, config):
-    """Set up the Rennigou sensors."""
-
-    # Get username and password from configuration
-    username = config[CONF_USERNAME]
-    password = config[CONF_PASSWORD]
-
-    # Initialize Rennigou client
-    client = RennigouClient()
-
-    # Login to Rennigou
-    await client.login(username, password)
-
-    # Define the currency rate sensor
-    hass.states.async_set(
-        f"{DOMAIN}.rennigou_currency_rate",
-        0.0,  # Initial value
-        {
-            "friendly_name": "Rennigou Currency Rate",
-            "icon": "mdi:currency-usd",
-        },
-    )
-
-    # Define the packages sensor
-    hass.states.async_set(
-        f"{DOMAIN}.rennigou_packages",
-        [],  # Initial value is an empty list
-        {
-            "friendly_name": "Rennigou Packages",
-            "icon": "mdi:package",
-        },
-    )
-
-    # Schedule update tasks
-    hass.loop.create_task(update_currency_rate(hass, client))
-    hass.loop.create_task(update_packages(hass, client))
-
+async def async_setup(hass: HomeAssistant, config: ConfigType):
+    """Set up the Rennigou component."""
     return True
 
 
-async def update_currency_rate(hass, client):
-    """Update currency rate sensor."""
-    while True:
-        currency_rate = await client.get_currency_rate()
-        hass.states.async_set(
-            f"{DOMAIN}.rennigou_currency_rate",
-            currency_rate,
-            {
-                "friendly_name": "Rennigou Currency Rate",
-                "icon": "mdi:currency-usd",
-            },
-        )
-        await asyncio.sleep(3600)  # Update every hour
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    _LOGGER.warning("Ciallo Rennigou")
 
+    # Login first
+    try:
+        client = RennigouClient(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+        await client.login()
+    except RennigouLoginFail as err:
+        raise ConfigEntryNotReady(err) from err
 
-async def update_packages(hass, client):
-    """Update packages sensor."""
-    while True:
-        packages = await client.get_packages()
-        hass.states.async_set(
-            f"{DOMAIN}.rennigou_packages",
-            packages,
-            {
-                "friendly_name": "Rennigou Packages",
-                "icon": "mdi:package",
-            },
-        )
-        await asyncio.sleep(86400)  # Update every day
+    # TODO Register login service, login every 12 hours
+
+    # TODO Register currency sensor
+
+    # TODO How to register packages?
+
+    rennigou_coordinator = RennigouCoordinator(hass, client)
+
+    await rennigou_coordinator.async_config_entry_first_refresh()
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rennigou_coordinator
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    return True

@@ -31,8 +31,10 @@ class RennigouAPIRequestError(RuntimeError):
 
 
 class RennigouClient:
-    def __init__(self):
+    def __init__(self, username: str, password: str):
         self.uid = None
+        self.username = username
+        self.password = password
         self.token = None
 
     async def _send_request(
@@ -61,19 +63,34 @@ class RennigouClient:
         self, method: str, endpoint: str, params=None, data=None
     ) -> dict:
         url = f"{API_HOST}{endpoint}"
-        response = await self._send_request(method, url, params, data)
+        headers = {
+            "Referer": REFER_HOST,
+            "Authorization": f"Bearer {self._generate_jwt_token()}",
+        }
 
-        # Check if response is empty
-        try:
-            data = response.json()
-        except JSONDecodeError:
-            raise RennigouEmptyResponse(method, url)
+        if self.token is not None:
+            headers["Token"] = f"{self.token}"
+            headers["Uid"] = f"{self.uid}"
 
-        # Check if data code == 0
-        if code := data["code"] != 0:
-            raise RennigouAPIRequestError(code, data["msg"])
+        async with aiohttp.ClientSession() as session:
+            async with session.request(
+                method, url, headers=headers, params=params, data=data
+            ) as response:
+                # Check if status code == 200
+                if status_code := response.status != 200:
+                    raise RennigouHTTPError(url, status_code)
 
-        return data["data"]
+                # Check if response is empty
+                try:
+                    data = await response.json()
+                except JSONDecodeError:
+                    raise RennigouEmptyResponse(method, url)
+
+                # Check if data code == 0
+                if code := data["code"] != 0:
+                    raise RennigouAPIRequestError(code, data["msg"])
+
+                return data["data"]
 
     def _generate_jwt_token(self) -> str:
         payload = {
@@ -88,20 +105,22 @@ class RennigouClient:
 
         return token
 
-    async def login(self, username: str, password: str) -> None:
+    async def login(self) -> None:
         try:
-            data = await self._send_api_request(
+            response = await self._send_api_request(
                 "POST",
                 "/user/index/login",
                 data={
                     "type": 3,  # 也许是网页登录的意思
-                    "mail": username,
-                    "pass": password,
+                    "mail": self.username,
+                    "pass": self.password,
                 },
             )
-            self.token = data["token"]
-            self.uid = data["userInfo"]["user_id"]
+            self.token = response["token"]
+            self.uid = response["userInfo"]["user_id"]
         except RennigouEmptyResponse:
+            raise RennigouLoginFail
+        except RennigouAPIRequestError:
             raise RennigouLoginFail
 
     async def get_currency_rate(self) -> float:
