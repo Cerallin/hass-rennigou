@@ -1,11 +1,11 @@
 {
+  "domain": "rennigou",
+  "name": "Rennigou",
   "codeowners": ["@Cerallin"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/Cerallin/hass-rennigou/blob/master/README.md",
-  "domain": "rennigou",
   "iot_class": "cloud_polling",
-  "name": "Rennigou",
   "requirements": [],
   "version": "0.1.0"
 }
