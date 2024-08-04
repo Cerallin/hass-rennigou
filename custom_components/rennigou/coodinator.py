@@ -1,9 +1,7 @@
-"""Coordinator for 17Track."""
+"""Coordinator for Rennigou."""
 
+import asyncio
 from dataclasses import dataclass
-
-from .rennigou import RennigouClient
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -12,7 +10,12 @@ from .const import (
     DOMAIN,
     LOGGER,
     DEFAULT_SCAN_INTERVAL,
+    ATTR_AWAITING_STORAGE,
+    ATTR_AWAITING_SHIPMENT,
+    ATTR_AWAITING_DELIVERY,
+    ATTR_COMPLETED,
 )
+from .rennigou import RennigouClient, RennigouOrder
 
 
 @dataclass
@@ -20,11 +23,11 @@ class RennigouData:
     """Class for handling the data retrieval."""
 
     currency_rate: float
-    packages: list[dict]
+    orders: dict[str, list[RennigouOrder]]
 
 
 class RennigouCoordinator(DataUpdateCoordinator[RennigouData]):
-    """Class to manage fetching 17Track data."""
+    """Class to manage fetching Rennigou data."""
 
     config_entry: ConfigEntry
 
@@ -43,15 +46,29 @@ class RennigouCoordinator(DataUpdateCoordinator[RennigouData]):
         pass
 
     async def _async_update_data(self) -> RennigouData:
-        """Fetch data from 17Track API."""
+        """Fetch data from Rennigou API."""
 
         try:
+            LOGGER.warn("Gathering order data")
             currency_rate = await self.client.get_currency_rate()
-            packages = await self.client.get_packages()
+            packages_lists = await asyncio.gather(
+                self.client.get_awaiting_storage_orders(),
+                self.client.get_awaiting_shipment_orders(),
+                self.client.get_awaiting_delivery_orders(),
+                self.client.get_completed_orders(),
+            )
+            LOGGER.warn("Gather order data finished")
         except Exception as err:
             raise UpdateFailed(err) from err
 
+        packages_keys = [
+            ATTR_AWAITING_STORAGE,
+            ATTR_AWAITING_SHIPMENT,
+            ATTR_AWAITING_DELIVERY,
+            ATTR_COMPLETED,
+        ]
+
         return RennigouData(
             currency_rate=currency_rate,
-            packages=packages,
+            orders=dict(zip(packages_keys, packages_lists)),
         )

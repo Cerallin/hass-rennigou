@@ -10,7 +10,14 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, ATTRIBUTION
+from .const import (
+    DOMAIN,
+    ATTRIBUTION,
+    ATTR_AWAITING_STORAGE,
+    ATTR_AWAITING_SHIPMENT,
+    ATTR_AWAITING_DELIVERY,
+    ATTR_COMPLETED,
+)
 from .coodinator import RennigouCoordinator
 
 
@@ -23,7 +30,10 @@ async def async_setup_entry(
     async_add_entities(
         [
             RennigouCurrencySensor(coordinator),
-            RennigouPackagesSensor(coordinator),
+            RennigouPackagesSensor(coordinator, ATTR_AWAITING_STORAGE),
+            RennigouPackagesSensor(coordinator, ATTR_AWAITING_SHIPMENT),
+            RennigouPackagesSensor(coordinator, ATTR_AWAITING_DELIVERY),
+            RennigouPackagesSensor(coordinator, ATTR_COMPLETED),
         ]
     )
 
@@ -67,24 +77,31 @@ class RennigouCurrencySensor(RennigouSensor):
 
 
 class RennigouPackagesSensor(RennigouSensor):
-    def __init__(self, coordinator):
+    def __init__(self, coordinator: RennigouCoordinator, attr_name: str):
         super().__init__(coordinator)
+
+        self._name = attr_name.replace("_", " ")
+        self._entry_name = attr_name
+
+    @property
+    def _orders(self):
+        return self.coordinator.data.orders[self._entry_name]
 
     @property
     def name(self):
-        return "package list"
+        return self._name
 
     @property
     def state(self):
-        return len(self.coordinator.data.packages)
+        return len(self._orders)
 
     @property
     def unique_id(self):
-        return f"{DOMAIN}_packages_sensor"
+        return f"{DOMAIN}_{self.name.replace(" ", "_")}"
 
     @property
     def extra_state_attributes(self):
-        return {"packages": self.coordinator.data.packages}
+        return {"orders": self._orders}
 
     async def async_update(self):
         await self.coordinator.async_request_refresh()

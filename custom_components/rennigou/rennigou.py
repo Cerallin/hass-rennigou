@@ -3,9 +3,40 @@ import time
 import jwt
 from json import JSONDecodeError
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 from .const import API_HOST, REFER_HOST
+
+
+class RennigouOrder:
+    timestamp: datetime
+    updated_at: datetime
+    status: str
+    image_link: str
+    title: str
+    source_site: str
+
+    def __init__(self, order_data) -> None:
+        header = order_data["header"]
+        body = order_data["body"][0]
+
+        self.timestamp = datetime.fromtimestamp(header["show_time"])
+        self.updated_at = datetime.fromtimestamp(body["update_time"])
+        self.status = header["status_name"]
+
+        self.image_link = body["product_main_img"]
+        self.title = body["product_title"]
+
+        self.source_site = body["source_site_name"]
+
+    def as_dict(self) -> dict[str, datetime | str]:
+        return {
+            "timestamp": self.timestamp,
+            "updated_at": self.updated_at,
+            "status": self.status,
+            "image_link": self.image_link,
+            "title": self.title,
+            "source_site": self.source_site,
+        }
 
 
 class RennigouLoginFail(RuntimeError):
@@ -127,31 +158,34 @@ class RennigouClient:
         data = await self._send_api_request("GET", "/supplier/index/getCommonInfo")
         return data["exchange"]
 
-    async def get_packages(self) -> list[dict]:
-        data = await self._send_api_request(
+    async def _get_orders(
+        self, service: str, page: int = 1, is_show_page: bool = True
+    ) -> list[dict]:
+        response = await self._send_api_request(
             "GET",
-            "/order/order/getAllLists",
+            "/order/order/getLists",
             params={
-                "page": "1",
+                "page": f"{page}",
                 "page_last_id": "0",
-                "service": "all_query",
-                "is_show_page": "1",
+                "service": service,
+                "is_show_page": "1" if is_show_page else "0",
             },
         )
 
-        six_months_ago = datetime.today() - relativedelta(months=+6)
+        return [RennigouOrder(order_data) for order_data in response["result"]]
 
-        packages = [
-            {
-                "show_time": (header := package["header"])["show_time"],
-                "status_name": header["status_name"],
-                "update_time": (body := package["body"][0])["update_time"],
-                "product_main_img": body["product_main_img"],
-                "product_title": body["product_title"],
-                "source_site_name": body["source_site_name"],
-            }
-            for package in data["result"]
-            if datetime.fromtimestamp(package["header"]["show_time"]) >= six_months_ago
-        ]
+    async def get_awaiting_storage_orders(self) -> list[dict]:
+        """待入库订单"""
+        return await self._get_orders("unPutIn")
 
-        return packages
+    async def get_awaiting_shipment_orders(self) -> list[dict]:
+        """待发货订单"""
+        return await self._get_orders("unDelivery_unpaid")
+
+    async def get_awaiting_delivery_orders(self) -> list[dict]:
+        """待收货订单"""
+        return await self._get_orders("unTakeDelivery_ownerPackage")
+
+    async def get_completed_orders(self) -> list[dict]:
+        """已完成订单"""
+        return await self._get_orders("finish_ownerPackage")
