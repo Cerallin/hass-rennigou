@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     ATTRIBUTION,
+    ATTR_UNCOMPLETED_ORDERS,
     ATTR_AWAITING_PURCHASE,
     ATTR_AWAITING_STORAGE,
     ATTR_AWAITING_SHIPMENT,
@@ -31,11 +32,12 @@ async def async_setup_entry(
     async_add_entities(
         [
             RennigouCurrencySensor(coordinator),
-            RennigouPackagesSensor(coordinator, ATTR_AWAITING_PURCHASE),
-            RennigouPackagesSensor(coordinator, ATTR_AWAITING_STORAGE),
-            RennigouPackagesSensor(coordinator, ATTR_AWAITING_SHIPMENT),
-            RennigouPackagesSensor(coordinator, ATTR_AWAITING_DELIVERY),
-            RennigouPackagesSensor(coordinator, ATTR_COMPLETED),
+            RennigouUncompletedOrdersSensor(coordinator, ATTR_UNCOMPLETED_ORDERS),
+            RennigouOrdersSensor(coordinator, ATTR_AWAITING_PURCHASE),
+            RennigouOrdersSensor(coordinator, ATTR_AWAITING_STORAGE),
+            RennigouOrdersSensor(coordinator, ATTR_AWAITING_SHIPMENT),
+            RennigouOrdersSensor(coordinator, ATTR_AWAITING_DELIVERY),
+            RennigouOrdersSensor(coordinator, ATTR_COMPLETED),
         ]
     )
 
@@ -78,7 +80,7 @@ class RennigouCurrencySensor(RennigouSensor):
         await self.coordinator.async_request_refresh()
 
 
-class RennigouPackagesSensor(RennigouSensor):
+class RennigouOrdersSensor(RennigouSensor):
     def __init__(self, coordinator: RennigouCoordinator, attr_name: str):
         super().__init__(coordinator)
 
@@ -107,3 +109,20 @@ class RennigouPackagesSensor(RennigouSensor):
 
     async def async_update(self):
         await self.coordinator.async_request_refresh()
+
+
+class RennigouUncompletedOrdersSensor(RennigouOrdersSensor):
+    def __init__(self, coordinator: RennigouCoordinator, attr_name: str):
+        super().__init__(coordinator, attr_name)
+
+    @property
+    def _orders(self):
+        data = self.coordinator.data.orders
+
+        orders = []
+        orders += data[ATTR_AWAITING_PURCHASE]
+        orders += data[ATTR_AWAITING_STORAGE]
+        orders += data[ATTR_AWAITING_SHIPMENT]
+        orders += data[ATTR_AWAITING_DELIVERY]
+
+        return orders
