@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     ATTRIBUTION,
+    ATTR_AWAITING_PURCHASE,
     ATTR_AWAITING_STORAGE,
     ATTR_AWAITING_SHIPMENT,
     ATTR_AWAITING_DELIVERY,
@@ -30,6 +31,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             RennigouCurrencySensor(coordinator),
+            RennigouPackagesSensor(coordinator, ATTR_AWAITING_PURCHASE),
             RennigouPackagesSensor(coordinator, ATTR_AWAITING_STORAGE),
             RennigouPackagesSensor(coordinator, ATTR_AWAITING_SHIPMENT),
             RennigouPackagesSensor(coordinator, ATTR_AWAITING_DELIVERY),

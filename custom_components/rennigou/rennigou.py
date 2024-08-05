@@ -174,18 +174,21 @@ class RennigouClient:
 
         return [RennigouOrder(order_data) for order_data in response["result"]]
 
-    async def get_awaiting_storage_orders(self) -> list[dict]:
+    async def get_awaiting_purchase_orders(self) -> list[RennigouOrder]:
+        return await self._get_orders("unpaid_purchase")
+
+    async def get_awaiting_storage_orders(self) -> list[RennigouOrder]:
         """待入库订单"""
         return await self._get_orders("unPutIn")
 
-    async def get_awaiting_shipment_orders(self) -> list[dict]:
+    async def get_awaiting_shipment_orders(self) -> list[RennigouOrder]:
         """待发货订单"""
         return await self._get_orders("unDelivery_unpaid")
 
-    async def get_awaiting_delivery_orders(self) -> list[dict]:
+    async def get_awaiting_delivery_orders(self) -> list[RennigouOrder]:
         """待收货订单"""
         return await self._get_orders("unTakeDelivery_ownerPackage")
 
-    async def get_completed_orders(self) -> list[dict]:
+    async def get_completed_orders(self) -> list[RennigouOrder]:
         """已完成订单"""
         return await self._get_orders("finish_ownerPackage")

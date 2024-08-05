@@ -10,6 +10,7 @@ from .const import (
     DOMAIN,
     LOGGER,
     DEFAULT_SCAN_INTERVAL,
+    ATTR_AWAITING_PURCHASE,
     ATTR_AWAITING_STORAGE,
     ATTR_AWAITING_SHIPMENT,
     ATTR_AWAITING_DELIVERY,
@@ -49,19 +50,19 @@ class RennigouCoordinator(DataUpdateCoordinator[RennigouData]):
         """Fetch data from Rennigou API."""
 
         try:
-            LOGGER.warn("Gathering order data")
             currency_rate = await self.client.get_currency_rate()
             packages_lists = await asyncio.gather(
+                self.client.get_awaiting_purchase_orders(),
                 self.client.get_awaiting_storage_orders(),
                 self.client.get_awaiting_shipment_orders(),
                 self.client.get_awaiting_delivery_orders(),
                 self.client.get_completed_orders(),
             )
-            LOGGER.warn("Gather order data finished")
         except Exception as err:
             raise UpdateFailed(err) from err
 
         packages_keys = [
+            ATTR_AWAITING_PURCHASE,
             ATTR_AWAITING_STORAGE,
             ATTR_AWAITING_SHIPMENT,
             ATTR_AWAITING_DELIVERY,
