@@ -183,7 +183,7 @@ class RennigouClient:
 
     async def get_awaiting_shipment_orders(self) -> list[RennigouOrder]:
         """待发货订单"""
-        return await self._get_orders("unDelivery_unpaid")
+        return await self._get_orders("unDelivery_unDelivery")
 
     async def get_awaiting_delivery_orders(self) -> list[RennigouOrder]:
         """待收货订单"""
