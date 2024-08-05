@@ -13,8 +13,7 @@ This is a hass integration for [Rennigou(Anybuy)](https://rennigou.jp).
 
 打开HACS设置并添加本repo (https://github.com/Cerallin/hass-rennigou) 为一个自定义集成（分类要选**Integration**）
 
-
-你也可以点击下方按钮一键安装：、
+你也可以点击下方按钮一键安装：
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=Integration&repository=hass-rennigou&owner=Cerallin)
 
 ## 配置
