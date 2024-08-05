@@ -59,6 +59,7 @@ class RennigouCoordinator(DataUpdateCoordinator[RennigouData]):
                 self.client.get_completed_orders(),
             )
         except Exception as err:
+            LOGGER.exception(err)
             raise UpdateFailed(err) from err
 
         packages_keys = [

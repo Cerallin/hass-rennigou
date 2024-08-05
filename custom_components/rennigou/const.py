@@ -15,5 +15,8 @@ ATTR_AWAITING_SHIPMENT = "awaiting_shipment"
 ATTR_AWAITING_DELIVERY = "awaiting_delivery"
 ATTR_COMPLETED = "completed"
 
+PACKAGE_TYPE_OWNER = "自发包裹"
+PACKAGE_TYPE_POOL = "参团包裹"
+
 API_HOST = "https://rl.rngmoe.com"
 REFER_HOST = "https://www.030buy.net/"

@@ -1,4 +1,3 @@
-import logging
 import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
@@ -10,11 +9,10 @@ from homeassistant.const import (
     Platform,
 )
 
-from .const import DOMAIN, REFRESH_TOKEN_INTERVAL
+from .const import DOMAIN, LOGGER, REFRESH_TOKEN_INTERVAL
 from .rennigou import RennigouClient, RennigouLoginFail
 from .coodinator import RennigouCoordinator
 
-_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -25,12 +23,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    _LOGGER.info("Ciallo～(∠・ω< ) 任你购")
+    LOGGER.info("Ciallo～(∠・ω< ) 任你购")
 
     # Login first
     try:
         client = RennigouClient(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
         await client.login()
+        LOGGER.debug(f"Rennigou token: {client.token}")
     except RennigouLoginFail as err:
         raise ConfigEntryNotReady(err) from err
 
@@ -39,7 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # refresh auth token every REFRESH_TOKEN_INTERVAL
     async def refgresh_rennigou_token(coordinator: RennigouCoordinator):
-        _LOGGER.info("Refreshed rennigou auth token")
+        LOGGER.info("Refreshed rennigou auth token")
         await coordinator.client.login()
         await asyncio.sleep(REFRESH_TOKEN_INTERVAL.total_seconds())
 

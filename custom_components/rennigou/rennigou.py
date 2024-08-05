@@ -1,12 +1,21 @@
 import aiohttp
+import asyncio
 import time
 import jwt
+from dataclasses import dataclass
 from json import JSONDecodeError
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
-from .const import API_HOST, REFER_HOST
+from .const import (
+    API_HOST,
+    REFER_HOST,
+    PACKAGE_TYPE_OWNER,
+    PACKAGE_TYPE_POOL,
+)
 
 
+@dataclass
 class RennigouOrder:
     timestamp: datetime
     updated_at: datetime
@@ -14,6 +23,8 @@ class RennigouOrder:
     image_link: str
     title: str
     source_site: str
+
+    type: str = None  # 自发包裹/参团包裹，仅对待收货/已完成的订单有效
 
     def __init__(self, order_data) -> None:
         header = order_data["header"]
@@ -28,15 +39,10 @@ class RennigouOrder:
 
         self.source_site = body["source_site_name"]
 
-    def as_dict(self) -> dict[str, datetime | str]:
-        return {
-            "timestamp": self.timestamp,
-            "updated_at": self.updated_at,
-            "status": self.status,
-            "image_link": self.image_link,
-            "title": self.title,
-            "source_site": self.source_site,
-        }
+    def assign_type(self, type: str):
+        self.type = type
+
+        return self
 
 
 class RennigouLoginFail(RuntimeError):
@@ -131,7 +137,9 @@ class RennigouClient:
         }
 
         token = jwt.encode(
-            payload, key="OYZJEYvhNbwYG3WOecDzw8Mq8SixjD23", algorithm="HS256"
+            payload,
+            key="OYZJEYvhNbwYG3WOecDzw8Mq8SixjD23",
+            algorithm="HS256",
         )
 
         return token
@@ -159,8 +167,11 @@ class RennigouClient:
         return data["exchange"]
 
     async def _get_orders(
-        self, service: str, page: int = 1, is_show_page: bool = True
-    ) -> list[dict]:
+        self,
+        service: str,
+        page: int = 1,
+        is_show_page: bool = True,
+    ) -> list[RennigouOrder]:
         response = await self._send_api_request(
             "GET",
             "/order/order/getLists",
@@ -172,7 +183,12 @@ class RennigouClient:
             },
         )
 
-        return [RennigouOrder(order_data) for order_data in response["result"]]
+        # 有的接口返回null而不是空数组
+        order_list = res if (res := response["result"]) else []
+        orders = [RennigouOrder(order_data) for order_data in order_list]
+        # 忽略时间截断之前的包裹
+        ignore_before = datetime.today() + relativedelta(months=-6)
+        return [order for order in orders if order.timestamp >= ignore_before]
 
     async def get_awaiting_purchase_orders(self) -> list[RennigouOrder]:
         return await self._get_orders("unpaid_purchase")
@@ -185,10 +201,30 @@ class RennigouClient:
         """待发货订单"""
         return await self._get_orders("unDelivery_unDelivery")
 
+    async def _get_2_type_orders(self, service: str) -> list[RennigouOrder]:
+        """待收货订单"""
+        orders: list[list[RennigouOrder]] = await asyncio.gather(
+            self._get_orders(f"{service}_ownerPackage"),
+            self._get_orders(f"{service}_poolPackage"),
+        )
+
+        for order in orders[0]:
+            order.assign_type(PACKAGE_TYPE_OWNER)
+        for order in orders[1]:
+            order.assign_type(PACKAGE_TYPE_POOL)
+
+        orders_togather = [*orders[0], *orders[1]]
+        # 时间倒序
+        orders_togather.sort(key=lambda d: d.timestamp, reverse=True)
+
+        return orders_togather
+
     async def get_awaiting_delivery_orders(self) -> list[RennigouOrder]:
         """待收货订单"""
-        return await self._get_orders("unTakeDelivery_ownerPackage")
+        orders = await self._get_2_type_orders("unTakeDelivery")
+        # TODO 查询快递单号
+        return orders
 
     async def get_completed_orders(self) -> list[RennigouOrder]:
         """已完成订单"""
-        return await self._get_orders("finish_ownerPackage")
+        return await self._get_2_type_orders("finish_ownerPackage")
