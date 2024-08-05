@@ -17,6 +17,7 @@ from .const import (
 
 @dataclass
 class RennigouOrder:
+    id: int
     timestamp: datetime
     updated_at: datetime
     status: str
@@ -29,6 +30,8 @@ class RennigouOrder:
     def __init__(self, order_data) -> None:
         header = order_data["header"]
         body = order_data["body"][0]
+
+        self.id = order_data["id"]
 
         self.timestamp = datetime.fromtimestamp(header["show_time"])
         self.updated_at = datetime.fromtimestamp(body["update_time"])
@@ -186,10 +189,14 @@ class RennigouClient:
 
         # 有的接口返回null而不是空数组
         order_list = res if (res := response["result"]) else []
-        orders = [RennigouOrder(order_data) for order_data in order_list]
+
+        # 用于去重
+        orders = {}
+        for order_data in order_list:
+            orders[order_data["id"]] = RennigouOrder(order_data)
         # 忽略时间截断之前的包裹
         ignore_before = datetime.today() + relativedelta(months=-6)
-        return [order for order in orders if order.timestamp >= ignore_before]
+        return [order for order in orders.values() if order.timestamp >= ignore_before]
 
     async def get_awaiting_purchase_orders(self) -> list[RennigouOrder]:
         return await self._get_orders("unpaid_purchase")
@@ -228,4 +235,4 @@ class RennigouClient:
 
     async def get_completed_orders(self) -> list[RennigouOrder]:
         """已完成订单"""
-        return await self._get_2_type_orders("finish_ownerPackage")
+        return await self._get_2_type_orders("finish")
