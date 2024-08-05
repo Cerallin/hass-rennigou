@@ -24,7 +24,7 @@ class RennigouOrder:
     title: str
     source_site: str
 
-    type: str = None  # 自发包裹/参团包裹，仅对待收货/已完成的订单有效
+    type: str  # 自发包裹/参团包裹，仅对待收货/已完成的订单有效
 
     def __init__(self, order_data) -> None:
         header = order_data["header"]
@@ -38,6 +38,7 @@ class RennigouOrder:
         self.title = body["product_title"]
 
         self.source_site = body["source_site_name"]
+        self.type = "无"
 
     def assign_type(self, type: str):
         self.type = type
