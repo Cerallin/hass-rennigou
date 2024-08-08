@@ -24,14 +24,15 @@ class RennigouOrder:
     image_link: str
     title: str
     source_site: str
+    weight: int  # 只有待发货订单有这个字段
 
     type: str  # 自发包裹/参团包裹，仅对待收货/已完成的订单有效
 
-    def __init__(self, order_data) -> None:
-        header = order_data["header"]
-        body = order_data["body"][0]
+    def __init__(self, order_data: dict) -> None:
+        header: dict = order_data["header"]
+        body: dict = order_data["body"][0]
 
-        self.id = order_data["id"]
+        self.id = order_data.get("id", 0)
 
         self.timestamp = datetime.fromtimestamp(header["show_time"])
         self.updated_at = datetime.fromtimestamp(body["update_time"])
@@ -41,6 +42,9 @@ class RennigouOrder:
         self.title = body["product_title"]
 
         self.source_site = body["source_site_name"]
+
+        self.weight = body.get("weight", 0)
+
         self.type = "无"
 
     def assign_type(self, type: str):
